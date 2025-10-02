@@ -1,0 +1,10 @@
+@"
+# Node / Next
+node_modules/
+.next/
+out/
+*.log
+.env*
+.vscode/
+.DS_Store
+"@ | Out-File -Encoding utf8 .gitignore
