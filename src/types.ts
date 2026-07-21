@@ -13,6 +13,8 @@ export type Incident = {
   area: string; // área
   controlCompanion: string; // quien de control me acompañó
   isFinancial: boolean; // financiero o no financiero
+  amount?: number; // monto (solo si es financiero)
+  currency?: string; // moneda del monto, ej. MXN, USD
   rootCause: string;
   status: 'open' | 'in_progress' | 'completed';
   followUpNote?: string; // qué me falta

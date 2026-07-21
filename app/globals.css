@@ -3,3 +3,70 @@
 @tailwind utilities;
 
 html, body, #__next { height: 100%; }
+
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(1100px 500px at 8% -8%, #e0e7ff 0%, rgba(224,231,255,0) 55%),
+    radial-gradient(900px 500px at 100% 0%, #f5e8ff 0%, rgba(245,232,255,0) 50%),
+    linear-gradient(180deg, #fbfbfe 0%, #f4f5fb 100%);
+  background-attachment: fixed;
+}
+
+html.dark body {
+  background:
+    radial-gradient(1100px 500px at 8% -8%, rgba(67,56,202,0.25) 0%, rgba(67,56,202,0) 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(126,34,206,0.18) 0%, rgba(126,34,206,0) 50%),
+    linear-gradient(180deg, #0b0b12 0%, #0f1017 100%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  /* Inputs, selects y textareas */
+  .field {
+    @apply w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-900
+           shadow-sm transition
+           placeholder:text-neutral-400
+           focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100
+           dark:border-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-100
+           dark:placeholder:text-neutral-500 dark:focus:border-brand-500 dark:focus:ring-brand-900/40;
+  }
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400;
+  }
+
+  /* Botones */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-pop hover:bg-brand-700;
+  }
+  .btn-ghost {
+    @apply btn border border-neutral-200 bg-white text-neutral-700 shadow-sm hover:bg-neutral-50 hover:border-neutral-300
+           dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:border-neutral-600;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-600 shadow-sm hover:bg-red-50 hover:border-red-300
+           dark:border-red-900/60 dark:bg-neutral-800 dark:text-red-400 dark:hover:bg-red-950/50;
+  }
+
+  /* Tarjeta base */
+  .card {
+    @apply rounded-2xl border border-neutral-200/70 bg-white/90 shadow-card backdrop-blur-sm
+           dark:border-neutral-800 dark:bg-neutral-900/70;
+  }
+
+  /* Chip para filtros de estatus */
+  .chip {
+    @apply cursor-pointer rounded-full border px-3.5 py-1.5 text-sm font-medium transition;
+  }
+  .chip-off {
+    @apply chip border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50
+           dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700;
+  }
+  .chip-on {
+    @apply chip border-transparent bg-brand-600 text-white shadow-sm;
+  }
+}
