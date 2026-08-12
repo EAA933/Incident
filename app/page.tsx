@@ -1,6 +1,8 @@
 'use client'
 import React from 'react'
-import { upsertIncident, deleteIncident, allIncidents } from '@/db'
+import { upsertIncident, deleteIncident, allIncidents, countIncidents, clearIncidents, bulkPutIncidents } from '@/db'
+import { supabase, isSupabaseConfigured } from '@/supabase'
+import type { Session } from '@supabase/supabase-js'
 import type { Incident } from '@/types'
 import { uid, incidentsToCSV, downloadFile, todayStamp, fmtDateShort, periodKey, periodLabel, currentPeriodKey } from '@/utils'
 import IncidentForm from '@/components/IncidentForm'
@@ -9,6 +11,7 @@ import Toolbar from '@/components/Toolbar'
 import StatCards from '@/components/StatCards'
 import ThemeToggle from '@/components/ThemeToggle'
 import ConfirmModal from '@/components/ConfirmModal'
+import Login from '@/components/Login'
 
 type Mode = { kind: 'list' } | { kind: 'edit', inc: Incident } | { kind: 'create', inc: Incident }
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'completed'
@@ -31,17 +34,56 @@ export default function Page() {
   const [lastExport, setLastExport] = React.useState<string | null>(null)
   const [backupDismissed, setBackupDismissed] = React.useState(false)
 
+  // undefined = cargando sesión; null = sin sesión; Session = con sesión
+  const [session, setSession] = React.useState<Session | null | undefined>(undefined)
+
   const refresh = React.useCallback(async () => {
-    const list = await allIncidents()
-    setItems(list)
+    try {
+      const list = await allIncidents()
+      setItems(list)
+    } catch {
+      setItems([])
+    }
   }, [])
 
+  // Manejo de sesión
   React.useEffect(() => {
-    refresh()
-    try { setLastExport(localStorage.getItem(LAST_EXPORT_KEY)) } catch {}
     // mensaje oculto 🥭
     console.log('%c Operado por Ar 🥭 ', 'background:#6366f1;color:#fff;font-weight:bold;padding:4px 8px;border-radius:6px')
-  }, [refresh])
+
+    supabase.auth.getSession().then(({ data }) => {
+      // Opción "no mantener sesión": cerrar al abrir en una pestaña nueva
+      try {
+        if (data.session && localStorage.getItem('logout-on-close') === '1' && !sessionStorage.getItem('session-active')) {
+          supabase.auth.signOut()
+          setSession(null)
+          return
+        }
+        sessionStorage.setItem('session-active', '1')
+      } catch {}
+      setSession(data.session)
+    })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s)
+    })
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  // Cargar datos cuando hay sesión
+  React.useEffect(() => {
+    if (session) {
+      refresh()
+      try { setLastExport(localStorage.getItem(LAST_EXPORT_KEY)) } catch {}
+    } else if (session === null) {
+      setItems([])
+    }
+  }, [session, refresh])
+
+  const logout = async () => {
+    await supabase.auth.signOut()
+    setMode({ kind: 'list' })
+  }
 
   const newIncident = (): Incident => ({
     id: uid('inc_'),
@@ -163,20 +205,22 @@ export default function Page() {
 
   const runImport = async (strategy: 'replace' | 'merge') => {
     if (!pendingImport) return
-    const { db } = await import('@/db')
-    const before = await db.incidents.count()
-    await db.transaction('rw', db.incidents, async () => {
-      if (strategy === 'replace') await db.incidents.clear()
-      for (const inc of pendingImport) await db.incidents.put(inc)
-    })
-    const after = await db.incidents.count()
-    setPendingImport(null)
-    await refresh()
-    if (strategy === 'replace') {
-      alert(`Se reemplazó todo. Ahora hay ${after} incidentes.`)
-    } else {
-      const added = after - before
-      alert(`Combinado: ${added} nuevos, ${pendingImport.length - Math.max(added, 0)} actualizados.`)
+    try {
+      const before = await countIncidents()
+      if (strategy === 'replace') await clearIncidents()
+      await bulkPutIncidents(pendingImport)
+      const after = await countIncidents()
+      setPendingImport(null)
+      await refresh()
+      if (strategy === 'replace') {
+        alert(`Se reemplazó todo. Ahora hay ${after} incidentes.`)
+      } else {
+        const added = after - before
+        alert(`Combinado: ${added} nuevos, ${pendingImport.length - Math.max(added, 0)} actualizados.`)
+      }
+    } catch {
+      alert('No se pudo importar. Revisa tu conexión e inténtalo de nuevo.')
+      setPendingImport(null)
     }
   }
 
@@ -193,6 +237,27 @@ export default function Page() {
     { key: 'in_progress', label: `En progreso · ${counts.in_progress}` },
     { key: 'completed', label: `Completados · ${counts.completed}` },
   ]
+
+  // Portón de autenticación
+  if (!isSupabaseConfigured) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-5">
+        <div className="card max-w-md p-7 text-center">
+          <div className="text-3xl">🔧</div>
+          <h1 className="mt-2 text-lg font-bold text-neutral-900 dark:text-neutral-100">Falta configurar Supabase</h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Agrega las variables <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> (en <code>.env.local</code> y en Vercel) para activar el inicio de sesión.
+          </p>
+        </div>
+      </main>
+    )
+  }
+  if (session === undefined) {
+    return <main className="flex min-h-screen items-center justify-center text-sm text-neutral-400">Cargando…</main>
+  }
+  if (session === null) {
+    return <Login />
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8 md:py-10">
@@ -213,7 +278,10 @@ export default function Page() {
             )}
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button onClick={logout} className="btn-ghost !py-2" title="Cerrar sesión">Salir</button>
+        </div>
         {/* mensaje oculto */}
         <span className="sr-only">Operado por Ar 🥭</span>
       </header>
