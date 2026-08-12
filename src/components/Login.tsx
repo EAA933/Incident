@@ -17,7 +17,16 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() })
     setLoading(false)
     if (error) {
-      setError('Usuario o contraseña incorrectos.')
+      const m = error.message || ''
+      if (/not confirmed/i.test(m)) {
+        setError('El usuario existe pero no está confirmado en Supabase. Actívalo con "Auto Confirm" o desactiva la confirmación por correo.')
+      } else if (/invalid login credentials/i.test(m)) {
+        setError('Usuario o contraseña incorrectos.')
+      } else if (/rate limit|too many/i.test(m)) {
+        setError('Demasiados intentos. Espera un minuto e inténtalo de nuevo.')
+      } else {
+        setError('No se pudo entrar: ' + m)
+      }
       return
     }
     // Si NO quiere mantener sesión, se cerrará al cerrar la pestaña
