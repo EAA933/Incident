@@ -5,6 +5,7 @@ import { supabase } from '@/supabase'
 export default function Login() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
+  const [showPass, setShowPass] = React.useState(false)
   const [keep, setKeep] = React.useState(true)
   const [error, setError] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -13,7 +14,7 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() })
     setLoading(false)
     if (error) {
       setError('Usuario o contraseña incorrectos.')
@@ -50,15 +51,26 @@ export default function Login() {
           </div>
           <div className="space-y-1.5">
             <label className="label">Contraseña</label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={e=>setPassword(e.target.value)}
-              className="field"
-              placeholder="••••••••"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPass ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={e=>setPassword(e.target.value)}
+                className="field pr-11"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={()=>setShowPass(s=>!s)}
+                title={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              >
+                {showPass ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
 
           <label className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
