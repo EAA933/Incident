@@ -11,10 +11,15 @@ if (!url || !anonKey) {
 
 export const isSupabaseConfigured = Boolean(url && anonKey)
 
-// Valores de reserva para que la app no se caiga si aún no hay variables.
-// Con estos valores el login simplemente no funcionará hasta configurar Supabase.
+// En el navegador enrutamos por el "puente" del mismo dominio (/sb), que Vercel
+// reenvía a Supabase. Así evitamos bloqueos corporativos a *.supabase.co.
+// En el servidor usamos la URL real directamente.
+const clientUrl = typeof window !== 'undefined'
+  ? `${window.location.origin}/sb`
+  : (url || 'https://placeholder.supabase.co')
+
 export const supabase = createClient(
-  url || 'https://placeholder.supabase.co',
+  clientUrl,
   anonKey || 'placeholder-anon-key',
   {
     auth: {
