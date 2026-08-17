@@ -104,13 +104,14 @@ function csvCell(v: unknown) {
 // Genera un CSV (compatible con Excel) a partir de los incidentes
 export function incidentsToCSV(items: Incident[]) {
   const headers = [
-    'Título', 'Estatus', 'Reportado', 'Corresponsal', 'Área', 'Acompañó (Control)',
+    'Título', 'Estatus', 'Reportado', 'Registrado en SCALA', 'Corresponsal', 'Área', 'Acompañó (Control)',
     'Financiero', 'Monto', 'Moneda', 'Causa raíz', 'Nota / falta', 'Próxima sesión', 'Sesiones',
   ]
   const rows = items.map(i => [
     i.title,
     i.status === 'completed' ? 'Completado' : i.status === 'in_progress' ? 'En progreso' : 'Abierto',
     fmtDate(i.reportedAt),
+    i.scalaAt ? fmtDate(i.scalaAt) : '',
     i.correspondent,
     i.area,
     i.controlCompanion,

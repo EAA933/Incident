@@ -62,6 +62,10 @@ export default function IncidentForm({ value, onChange, onSave, onCancel }: Prop
             <input type="datetime-local" value={toLocalInput(value.reportedAt)} onChange={e=>onChange({...value, reportedAt: e.target.value ? new Date(e.target.value).toISOString() : value.reportedAt})} className="field"/>
           </div>
           <div className="space-y-1.5">
+            <label className="label">Registrado en SCALA</label>
+            <input type="datetime-local" value={toLocalInput(value.scalaAt)} onChange={e=>onChange({...value, scalaAt: e.target.value ? new Date(e.target.value).toISOString() : undefined})} className="field"/>
+          </div>
+          <div className="space-y-1.5">
             <label className="label">Estatus</label>
             <select value={value.status} onChange={e=>onChange({...value, status:e.target.value as Incident['status']})} className="field">
               <option value="open">Abierto</option>

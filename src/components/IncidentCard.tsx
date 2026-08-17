@@ -32,6 +32,7 @@ export default function IncidentCard({ inc, onEdit, onDelete, onDuplicate }: {
         <div className="min-w-0">
           <h3 className="truncate text-lg font-bold text-neutral-900 dark:text-neutral-100">{inc.title || 'Sin título'}</h3>
           <div className="mt-0.5 text-xs text-neutral-500">Reportado: {fmtDate(inc.reportedAt)}</div>
+          {inc.scalaAt && <div className="text-xs text-neutral-500">Registrado en SCALA: {fmtDate(inc.scalaAt)}</div>}
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
           {overdue && <Badge tone="red">⏰ Vencido</Badge>}

@@ -9,6 +9,7 @@ export type Incident = {
   title: string;
   description: string;
   reportedAt: string; // ISO date when reported
+  scalaAt?: string; // ISO: registrado en SCALA (base del filtro trimestral)
   correspondent: string; // corresponsal
   area: string; // área
   controlCompanion: string; // quien de control me acompañó

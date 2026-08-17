@@ -4,7 +4,7 @@ import { upsertIncident, deleteIncident, allIncidents, countIncidents, clearInci
 import { supabase, isSupabaseConfigured } from '@/supabase'
 import type { Session } from '@supabase/supabase-js'
 import type { Incident } from '@/types'
-import { uid, incidentsToCSV, downloadFile, todayStamp, fmtDateShort, periodKey, periodLabel, currentPeriodKey } from '@/utils'
+import { uid, incidentsToCSV, downloadFile, todayStamp, periodKey, periodLabel, currentPeriodKey } from '@/utils'
 import IncidentForm from '@/components/IncidentForm'
 import IncidentCard from '@/components/IncidentCard'
 import Toolbar from '@/components/Toolbar'
@@ -17,9 +17,6 @@ type Mode = { kind: 'list' } | { kind: 'edit', inc: Incident } | { kind: 'create
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'completed'
 type SortBy = 'recent' | 'oldest' | 'amount' | 'status'
 
-const LAST_EXPORT_KEY = 'incidents_last_export'
-const BACKUP_DAYS = 7
-
 export default function Page() {
   const [mode, setMode] = React.useState<Mode>({ kind: 'list' })
   const [items, setItems] = React.useState<Incident[]>([])
@@ -31,8 +28,6 @@ export default function Page() {
 
   const [deleteTarget, setDeleteTarget] = React.useState<Incident | null>(null)
   const [pendingImport, setPendingImport] = React.useState<Incident[] | null>(null)
-  const [lastExport, setLastExport] = React.useState<string | null>(null)
-  const [backupDismissed, setBackupDismissed] = React.useState(false)
 
   // undefined = cargando sesión; null = sin sesión; Session = con sesión
   const [session, setSession] = React.useState<Session | null | undefined>(undefined)
@@ -74,7 +69,6 @@ export default function Page() {
   React.useEffect(() => {
     if (session) {
       refresh()
-      try { setLastExport(localStorage.getItem(LAST_EXPORT_KEY)) } catch {}
     } else if (session === null) {
       setItems([])
     }
@@ -90,6 +84,7 @@ export default function Page() {
     title: '',
     description: '',
     reportedAt: new Date().toISOString(),
+    scalaAt: new Date().toISOString(),
     correspondent: '',
     area: '',
     controlCompanion: '',
@@ -127,6 +122,7 @@ export default function Page() {
       sessions: [],
       followUpNote: '',
       reportedAt: new Date().toISOString(),
+      scalaAt: new Date().toISOString(),
       nextSessionAt: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -135,15 +131,17 @@ export default function Page() {
     setMode({ kind: 'create', inc: copy })
   }
 
-  // --- Trimestres disponibles (incluye el actual) ---
-  const periodSet = new Set(items.map(i => periodKey(i.reportedAt)))
+  // --- Trimestres disponibles (con base en la fecha de SCALA) ---
+  // Si un registro no tiene fecha de SCALA, se usa la fecha de reporte como respaldo.
+  const scalaPeriod = (i: Incident) => periodKey(i.scalaAt ?? i.reportedAt)
+  const periodSet = new Set(items.map(scalaPeriod))
   periodSet.add(currentPeriodKey())
   const periods = Array.from(periodSet).sort().reverse()
 
   // Incidentes del trimestre seleccionado (alimenta dashboard y conteos)
   const periodItems = periodFilter === 'all'
     ? items
-    : items.filter(i => periodKey(i.reportedAt) === periodFilter)
+    : items.filter(i => scalaPeriod(i) === periodFilter)
 
   // --- Filtro + orden ---
   const statusRank = { open: 0, in_progress: 1, completed: 2 }
@@ -172,21 +170,13 @@ export default function Page() {
   }
 
   // --- Export / Import ---
-  const markExported = () => {
-    const stamp = new Date().toISOString()
-    try { localStorage.setItem(LAST_EXPORT_KEY, stamp) } catch {}
-    setLastExport(stamp)
-  }
-
   const exportJSON = () => {
     downloadFile(JSON.stringify(items, null, 2), `incidentes-${todayStamp()}.json`, 'application/json')
-    markExported()
   }
 
   const exportCSV = () => {
     if (items.length === 0) { alert('No hay incidentes para exportar.'); return }
     downloadFile(incidentsToCSV(items), `incidentes-${todayStamp()}.csv`, 'text/csv;charset=utf-8')
-    markExported()
   }
 
   const importJSON = (file: File) => {
@@ -223,13 +213,6 @@ export default function Page() {
       setPendingImport(null)
     }
   }
-
-  // --- Aviso de respaldo ---
-  const needsBackup = items.length > 0 && !backupDismissed && (() => {
-    if (!lastExport) return true
-    const days = (Date.now() - new Date(lastExport).getTime()) / 86400000
-    return days >= BACKUP_DAYS
-  })()
 
   const filters: { key: StatusFilter, label: string }[] = [
     { key: 'all', label: `Todos · ${counts.all}` },
@@ -288,22 +271,6 @@ export default function Page() {
 
       {mode.kind === 'list' && (
         <div className="space-y-5">
-          {/* Aviso de respaldo */}
-          {needsBackup && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 md:flex-row md:items-center md:justify-between">
-              <div>
-                <span className="font-semibold">⚠️ Respalda tus datos. </span>
-                {lastExport
-                  ? `Tu último respaldo fue el ${fmtDateShort(lastExport)}. Los datos viven solo en este navegador.`
-                  : 'Aún no has hecho ningún respaldo. Los datos viven solo en este navegador y podrían perderse.'}
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button onClick={exportJSON} className="btn-primary !py-1.5">Respaldar ahora</button>
-                <button onClick={()=>setBackupDismissed(true)} className="btn-ghost !py-1.5">Ahora no</button>
-              </div>
-            </div>
-          )}
-
           <StatCards items={periodItems} />
 
           <Toolbar
